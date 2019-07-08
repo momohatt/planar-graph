@@ -1,4 +1,5 @@
 Require Import Coq.Reals.Reals.
+Require Import Coq.Logic.Classical_Prop.
 
 Inductive point : Type := Point (x y : R).
 
@@ -48,10 +49,23 @@ Record plain_map (m : map) : Prop := PlainMap {
   map_trans z1 z2 : m z1 z2 -> subregion (m z2) (m z1)
 }.
 
+Hint Resolve map_trans.
+
 (* sum of all the regions in map (set of all the points defined on map) *)
 Definition cover (m : map) : region := fun z => m z z.
 
 Definition submap (m1 m2 : map) : Prop := forall z, subregion (m1 z) (m2 z).
+
+Lemma submap_refl (m : map) :
+  submap m m.
+Proof. unfold submap. auto. Qed.
+
+Lemma submap_trans (m1 m2 m3 : map) :
+  submap m1 m2 -> submap m2 m3 -> submap m1 m3.
+Proof.
+  unfold submap. intros.
+  eapply subregion_trans; auto.
+Qed.
 
 (* There are at most n regions in m. *)
 Definition at_most_regions (n : nat) (m : map) :=
@@ -80,6 +94,20 @@ Record finite_simple_map (m : map) : Prop := FiniteSimpleMap {
   finite_simple_map_finite : exists n, at_most_regions n m
 }.
 
+Hint Resolve simple_map_plain.
+
+Lemma closure_map (m : map) (z z' : point) :
+  simple_map m -> closure (m z) z' -> m z z' \/ ~ m z' z'.
+Proof.
+  intros. repeat red in H0. destruct H.
+  assert (m z' z' -> exists z0 : point, intersect (m z) (m z') z0) by auto.
+  apply imply_to_or in H.
+  destruct H; auto.
+  left. inversion H; inversion H1.
+  apply map_trans with x; auto.
+  apply map_sym; auto.
+Qed.
+
 (* Borders, corners, adjacency and coloring. *)
 
 Definition border (m : map) (z1 z2 : point) : region :=
@@ -95,6 +123,19 @@ Definition not_corner (m : map) : region :=
 
 Definition adjacent (m : map) (z1 z2 : point) : Prop :=
   ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
+
+Lemma border_not_covered (m : map) (z1 z2 z :point) :
+  simple_map m -> ~ m z1 z2 -> border m z1 z2 z -> ~ m z z.
+Proof.
+  intros ? ? [? ?] ?.
+  apply H0. apply map_trans with z.
+  - inversion H; auto.
+  - destruct (closure_map _ _ _ H H1); auto.
+    apply H4 in H3. inversion H3.
+  - destruct (closure_map _ _ _ H H2).
+    + apply map_sym; auto. apply simple_map_plain; auto.
+    + apply H4 in H3. inversion H3.
+Qed.
 
 Definition outerface (m : map) (z1 : point) : Prop :=
   exists2 z2 : point, adjacent m z1 z2 & ~ (cover m z2).
@@ -145,6 +186,12 @@ Definition colorable_with (n : nat) (m : map) : Prop :=
 Definition tcolorable_with (n : nat) (m : map) : Prop :=
   exists2 k, tcoloring m k & at_most_regions n k.
 
+(*
+Definition restrict (k m : map) : map :=
+  fun z z' =>
+    (m z z -> k z z') /\ (~ m z z -> False).
+*)
+
 Lemma tcoloring_is_coloring :
   forall m k : map, simple_map m -> tcoloring m k -> coloring m k.
 Proof.
@@ -154,8 +201,21 @@ Proof.
   split; auto.
   - apply subregion_trans with (cover (totalize m)); auto.
     apply totalize_subregion; auto.
-  - admit.
-  - admit.
+  - apply submap_trans with (totalize m); auto.
+    repeat red. auto.
+  - (* any adjacent two faces in m are colored differently *)
+    intros.
+    destruct H0; destruct H1; destruct H1.
+    assert (~ m x x) by apply (border_not_covered _ _ _ _ H H0 H2).
+    apply tcoloring_adjacent0 with x.
+    + red. split.
+      { unfold totalize. intros F. destruct F.
+        - apply H3. assert (m z1 x) by (apply map_sym; auto).
+          apply map_trans with z1; auto.
+        - destruct H4 as [z3 [z4 [H4 [H5 [[H6 H7] H8]]]]].
+          admit. }
+      { admit. }
+    + red. split.
 Admitted.
 
 Lemma coloring_leq_tcoloring :
