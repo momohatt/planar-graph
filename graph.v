@@ -62,6 +62,18 @@ Record plain_map (m : map) : Prop := PlainMap {
 
 Hint Resolve map_trans.
 
+Lemma map_covered_left (m : map) (z1 z2 : point) :
+  plain_map m -> m z1 z2 -> m z1 z1.
+Proof.
+  intros. assert (m z2 z1) by (apply map_symm; auto).
+  apply map_trans in H0; auto. Qed.
+
+Lemma map_covered_right (m : map) (z1 z2 : point) :
+  plain_map m -> m z1 z2 -> m z2 z2.
+Proof.
+  intros. assert (m z2 z1) by (apply map_symm; auto).
+  apply map_trans in H1; auto. Qed.
+
 (* sum of all the regions in map (set of all the points defined on map) *)
 Definition cover (m : map) : region := fun z => m z z.
 
@@ -143,6 +155,9 @@ Definition not_corner (m : map) : region :=
 Definition adjacent (m : map) (z1 z2 : point) : Prop :=
   ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
 
+Definition inter_region (m : map) (z1 z2 : point) : region :=
+  fun z => ~ m z1 z2 /\ intersect (not_corner m) (border m z1 z2) z.
+
 Lemma border_not_covered (m : map) (z1 z2 z :point) :
   simple_map m -> ~ m z1 z2 -> border m z1 z2 z -> ~ m z z.
 Proof.
@@ -155,6 +170,16 @@ Proof.
     + apply map_symm; auto. apply simple_map_plain; auto.
     + apply H4 in H3. inversion H3.
 Qed.
+
+Lemma inter_region_deterministic (m : map) (z z1 z2 z3 z4 : point) :
+  inter_region m z1 z2 z -> inter_region m z3 z4 z ->
+  (z1 = z3 /\ z2 = z4) \/ (z1 = z4 /\ z2 = z3).
+Proof.
+  unfold inter_region. intros [? [? ?]] [? [? ?]].
+  unfold not_corner, at_most_regions in H0, H3.
+  destruct H0 as [f ?]. destruct H3 as [g ?].
+  unfold corner_map in H0, H3.
+Admitted.
 
 Definition outerface (m : map) (z1 : point) : Prop :=
   exists2 z2 : point, adjacent m z1 z2 & ~ (cover m z2).
@@ -176,6 +201,7 @@ Definition totalize (m : map) : map :=
   fun z z' =>
     (* もともとm上の点である *)
     m z z' \/
+    not_corner m z /\
     (* z1, z2を含むregionの間にある点 *)
     (exists z1 z2 : point,
       closure (m z1) z /\ closure (m z2) z /\ ~ m z1 z2 /\
@@ -186,13 +212,26 @@ Lemma totalize_symm (m : map) (z1 z2 : point) :
 Proof.
   unfold totalize. intros. destruct H0.
   - left. apply map_symm; auto.
-  - destruct H0 as [z3 [z4 [? [? [? ?]]]]]. right.
-  (* TODO *)
-Admitted.
+  - destruct H0 as [? [z3 [z4 [? [? [? [[? ?] ?]]]]]]].
+    right. split; auto. exists z3; exists z4.
+    repeat (split; auto).
+Qed.
 
-Lemma totalize_trans (m : map) (z1 z2 : point) :
-  totalize m z1 z2 -> subregion (totalize m z2) (totalize m z1).
+Lemma totalize_trans (m : map) (z1 z2 z3 : point) :
+  simple_map m -> totalize m z1 z2 -> totalize m z2 z3 -> totalize m z1 z3.
 Proof.
+  intros. destruct H0.
+  - destruct H1.
+    + left. apply map_trans with z2; auto.
+    + destruct H1 as [? [z4 [z5 [? [? [? ?]]]]]].
+      assert (border m z4 z5 z2) by (split; auto).
+      apply border_not_covered in H6; auto.
+      apply map_covered_right in H0; auto.
+      exfalso. apply H6; auto.
+  - destruct H0 as [? [z4 [z5 [? [? [? [? ?]]]]]]]. destruct H1.
+    + apply border_not_covered in H5; auto.
+      apply map_covered_left in H1; auto. exfalso. apply H5; auto.
+    + destruct H1 as [? [z6 [z7 [? [? [? [? ?]]]]]]].
   (* TODO *)
 Admitted.
 
