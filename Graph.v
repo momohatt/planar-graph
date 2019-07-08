@@ -1,5 +1,6 @@
 Require Import Coq.Reals.Reals.
 Require Import Coq.Logic.Classical_Prop.
+Require Import LibTactics.
 
 Inductive point : Type := Point (x y : R).
 
