@@ -37,15 +37,26 @@ Lemma subregion_trans (r1 r2 r3 : region) :
 Proof.
   unfold subregion. intros. auto. Qed.
 
-Hint Resolve subregion_refl subregion_trans.
-
 Definition meet (r1 r2 : region) : Prop := nonempty (intersect r1 r2).
+
+Lemma meet_symm (r1 r2 : region) :
+  meet r1 r2 -> meet r2 r1.
+Proof. intros [? [? ?]]. exists x; split; auto. Qed.
+
+Lemma meet_subregion (u1 u2 r : region) :
+  meet u1 r -> subregion u1 u2 -> meet u2 r.
+Proof.
+  unfold meet, nonempty, intersect. intros [? [? ?]] ?.
+  exists x. split; auto.
+Qed.
+
+Hint Resolve subregion_refl subregion_trans meet_subregion.
 
 (* Maps are represented as relations; proper map are partial equivalence  *)
 (* relations (PERs).                                                      *)
 
 Record plain_map (m : map) : Prop := PlainMap {
-  map_sym z1 z2 : m z1 z2 -> m z2 z1;
+  map_symm z1 z2 : m z1 z2 -> m z2 z1;
   map_trans z1 z2 : m z1 z2 -> subregion (m z2) (m z1)
 }.
 
@@ -94,6 +105,14 @@ Record finite_simple_map (m : map) : Prop := FiniteSimpleMap {
   finite_simple_map_finite : exists n, at_most_regions n m
 }.
 
+(*
+(* edgeがregionとして存在する *)
+Record edged_map (m : map) : Prop := EdgeMap {
+  edged_map_plain : plain_map m;
+  edged_map_connected z : connected (m z)
+}.
+*)
+
 Hint Resolve simple_map_plain.
 
 Lemma closure_map (m : map) (z z' : point) :
@@ -105,7 +124,7 @@ Proof.
   destruct H; auto.
   left. inversion H; inversion H1.
   apply map_trans with x; auto.
-  apply map_sym; auto.
+  apply map_symm; auto.
 Qed.
 
 (* Borders, corners, adjacency and coloring. *)
@@ -133,7 +152,7 @@ Proof.
   - destruct (closure_map _ _ _ H H1); auto.
     apply H4 in H3. inversion H3.
   - destruct (closure_map _ _ _ H H2).
-    + apply map_sym; auto. apply simple_map_plain; auto.
+    + apply map_symm; auto. apply simple_map_plain; auto.
     + apply H4 in H3. inversion H3.
 Qed.
 
@@ -152,14 +171,43 @@ Record coloring (m k : map) : Prop := Coloring {
   coloring_adjacent z1 z2 : adjacent m z1 z2 -> ~ k z1 z2
 }.
 
+(* TODO: add a restriction so that each region of m should be convex *)
 Definition totalize (m : map) : map :=
   fun z z' =>
     (* もともとm上の点である *)
     m z z' \/
     (* z1, z2を含むregionの間にある点 *)
     (exists z1 z2 : point,
-      closure (m z1) z /\ closure (m z2) z /\ adjacent m z1 z2 /\
+      closure (m z1) z /\ closure (m z2) z /\ ~ m z1 z2 /\
       intersect (border m z1 z2) (not_corner m) z').
+
+Lemma totalize_symm (m : map) (z1 z2 : point) :
+  simple_map m -> totalize m z1 z2 -> totalize m z2 z1.
+Proof.
+  unfold totalize. intros. destruct H0.
+  - left. apply map_symm; auto.
+  - destruct H0 as [z3 [z4 [? [? [? ?]]]]]. right.
+  (* TODO *)
+Admitted.
+
+Lemma totalize_trans (m : map) (z1 z2 : point) :
+  totalize m z1 z2 -> subregion (totalize m z2) (totalize m z1).
+Proof.
+  (* TODO *)
+Admitted.
+
+Lemma totalize_subregion (m : map) (z : point) :
+  subregion (m z) (totalize m z).
+Proof.
+  red; intros; left; auto. Qed.
+
+Lemma totalize_plain_map (m : map) :
+  simple_map m -> plain_map (totalize m).
+Proof.
+  intros. inversion H. split; intros.
+  - apply totalize_symm; auto.
+  - apply totalize_trans; auto.
+Qed.
 
 Lemma plain_map_totalize (m : map) (z z' : point) :
   simple_map m -> m z z' -> totalize m z z'.
@@ -167,7 +215,7 @@ Proof.
   intros. red. auto.
 Qed.
 
-Lemma totalize_subregion (m : map) :
+Lemma totalize_cover_subregion (m : map) :
   simple_map m -> subregion (cover m) (cover (totalize m)).
 Proof.
   unfold subregion, cover. intros. apply plain_map_totalize; auto.
@@ -186,12 +234,6 @@ Definition colorable_with (n : nat) (m : map) : Prop :=
 Definition tcolorable_with (n : nat) (m : map) : Prop :=
   exists2 k, tcoloring m k & at_most_regions n k.
 
-(*
-Definition restrict (k m : map) : map :=
-  fun z z' =>
-    (m z z -> k z z') /\ (~ m z z -> False).
-*)
-
 Lemma tcoloring_is_coloring :
   forall m k : map, simple_map m -> tcoloring m k -> coloring m k.
 Proof.
@@ -200,21 +242,28 @@ Proof.
   destruct tcoloring_coloring0.
   split; auto.
   - apply subregion_trans with (cover (totalize m)); auto.
-    apply totalize_subregion; auto.
+    apply totalize_cover_subregion; auto.
   - apply submap_trans with (totalize m); auto.
     repeat red. auto.
   - (* any adjacent two faces in m are colored differently *)
     intros.
-    destruct H0; destruct H1; destruct H1.
+    destruct H0 as [? [? [? ?]]].
     assert (~ m x x) by apply (border_not_covered _ _ _ _ H H0 H2).
     apply tcoloring_adjacent0 with x.
-    + red. split.
-      { unfold totalize. intros F. destruct F.
-        - apply H3. assert (m z1 x) by (apply map_sym; auto).
+    + (* adjacent (totalize m) x z1 *)
+      red. split.
+      { (* ~ totalize m x z1 *)
+        unfold totalize. intros F. destruct F.
+        - (* m x z1 を仮定する場合 *)
+          apply H3. assert (m z1 x) by (apply map_symm; auto).
           apply map_trans with z1; auto.
-        - destruct H4 as [z3 [z4 [H4 [H5 [[H6 H7] H8]]]]].
+        - (* z1が境界上にあることを仮定する場合 *)
+          destruct H4 as [z3 [z4 [? [? [? [? ?]]]]]].
+          apply border_not_covered in H7; auto.
+          apply H7.
           admit. }
-      { admit. }
+      { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
+        admit. }
     + red. split.
 Admitted.
 
