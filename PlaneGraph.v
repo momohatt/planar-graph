@@ -209,8 +209,12 @@ Proof with auto.
     + left. apply map_symm_trans_ll with (f 1)...
 Qed.
 
-Definition adjacent (m : map) (z1 z2 : point) : Prop :=
-  m z1 z1 /\ m z2 z2 /\ ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
+Record adjacent (m : map) (z1 z2 : point) : Prop := Adjacent {
+  adjacent_cover_left : m z1 z1;
+  adjacent_cover_right : m z2 z2;
+  adjacent_not_same_face : ~ m z1 z2;
+  adjacent_meet : meet (not_corner m) (border m z1 z2)
+}.
 
 Definition inter_region (m : map) (z1 z2 : point) : region :=
   fun z => ~ m z1 z2 /\ intersect (not_corner m) (border m z1 z2) z.

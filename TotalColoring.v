@@ -146,44 +146,43 @@ Proof with auto.
   - apply submap_trans with (totalize m)...
     repeat red...
   - (* any adjacent two faces in m are colored differently *)
-    intros.
-    destruct H0 as [? [? [? [? [? ?]]]]].
-    assert (~ m x x) by apply (border_not_covered _ _ _ _ H H2 H4).
+    intros. destruct H0. destruct adjacent_meet as [? [? ?]].
+    assert (~ m x x) by apply (border_not_covered _ _ _ _ H adjacent_not_same_face H1).
     apply tcoloring_adjacent0 with x.
     + (* adjacent (totalize m) x z1 *)
-      split. right. exists z1, z2. repeat (split; auto).
-      split. left...
       split.
+      { right. exists z1, z2. repeat (split; auto). }
+      { left... }
       { (* ~ totalize m x z1 *)
         unfold totalize. intros F. destruct F.
         - (* m x z1 を仮定する場合 *)
-          apply map_covered_left in H6...
+          apply map_covered_left in H3...
         - (* z1が境界上にあることを仮定する場合 *)
-          destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
-          destruct H10. apply border_not_covered in H10... }
+          destruct H3 as [z3 [z4 [? [? [? [? ?]]]]]].
+          destruct H7. apply border_not_covered in H7... }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
         exists x. split.
         - apply totalize_preserves_not_corner...
         - split.
           + red. intros. exists x... split... right.
-            exists z1, z2... destruct H4. repeat split...
-          + destruct H4.
+            exists z1, z2... destruct H1. repeat split...
+          + destruct H1.
             cut (subregion (closure (m z1)) (closure (totalize m z1)))...
             apply closure_preserves_subregion. apply totalize_subregion. }
     + (* same as previous one! *)
-      split. right. exists z1, z2. repeat (split; auto).
-      split. left...
       split.
+      { right. exists z1, z2. repeat (split; auto). }
+      { left... }
       { unfold totalize. intros F. destruct F.
-        - apply map_covered_left in H6...
-        - destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
-          destruct H10. apply border_not_covered in H10... }
+        - apply map_covered_left in H3...
+        - destruct H3 as [z3 [z4 [? [? [? [? ?]]]]]].
+          destruct H7. apply border_not_covered in H7... }
       { exists x. split.
         - apply totalize_preserves_not_corner...
         - split.
           + red. intros. exists x... split... right.
-            exists z1, z2... destruct H4. repeat split...
-          + destruct H4.
+            exists z1, z2... destruct H1. repeat split...
+          + destruct H1.
             cut (subregion (closure (m z2)) (closure (totalize m z2)))...
             apply closure_preserves_subregion. apply totalize_subregion. }
 Qed.
