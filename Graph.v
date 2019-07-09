@@ -141,14 +141,6 @@ Record finite_simple_map (m : map) : Prop := FiniteSimpleMap {
   finite_simple_map_finite : exists n, at_most_regions n m
 }.
 
-(*
-(* edgeがregionとして存在する *)
-Record edged_map (m : map) : Prop := EdgeMap {
-  edged_map_plain : plain_map m;
-  edged_map_connected z : connected (m z)
-}.
-*)
-
 Hint Resolve simple_map_plain.
 
 Lemma closure_map (m : map) (z z' : point) :
@@ -230,26 +222,26 @@ Proof. split; unfold border; apply intersect_symm. Qed.
 Lemma inter_region_symm (m : map) (z1 z2 z : point) :
   simple_map m ->
   inter_region m z1 z2 z <-> inter_region m z2 z1 z.
-Proof.
+Proof with auto.
   split; unfold inter_region; intros [? [? ?]]; split.
-  - intros F; apply H0; apply map_symm; auto.
-  - split; auto. apply border_symm; auto.
-  - intros F; apply H0; apply map_symm; auto.
-  - split; auto. apply border_symm; auto.
+  - intros F; apply H0; apply map_symm...
+  - split... apply border_symm...
+  - intros F; apply H0; apply map_symm...
+  - split... apply border_symm...
 Qed.
 
 Hint Resolve border_symm inter_region_symm.
 
 Lemma border_not_covered (m : map) (z1 z2 z : point) :
   simple_map m -> ~ m z1 z2 -> border m z1 z2 z -> ~ m z z.
-Proof.
+Proof with auto.
   intros ? ? [? ?] ?.
   apply H0. apply map_trans with z.
-  - inversion H; auto.
-  - destruct (closure_map _ _ _ H H1); auto.
+  - inversion H...
+  - destruct (closure_map _ _ _ H H1)...
     apply H4 in H3. inversion H3.
   - destruct (closure_map _ _ _ H H2).
-    + apply map_symm; auto.
+    + apply map_symm...
     + apply H4 in H3. inversion H3.
 Qed.
 
@@ -344,12 +336,12 @@ Proof.
 
 Lemma totalize_plain_map (m : map) :
   simple_map m -> plain_map (totalize m).
-Proof.
+Proof with auto.
   intros. inversion H. split; intros.
-  - apply totalize_symm; auto.
-  - red. intros. apply totalize_trans with z3; auto.
-    apply totalize_trans with z2; auto. apply totalize_trans with z2; auto.
-    apply totalize_symm; auto.
+  - apply totalize_symm...
+  - red. intros. apply totalize_trans with z3...
+    apply totalize_trans with z2... apply totalize_trans with z2...
+    apply totalize_symm...
 Qed.
 
 Lemma plain_map_totalize (m : map) (z z' : point) :
@@ -445,7 +437,7 @@ Proof with auto.
     apply tcoloring_adjacent0 with x.
     + (* adjacent (totalize m) x z1 *)
       split. right. exists z1, z2. repeat (split; auto).
-      split. left. auto.
+      split. left...
       split.
       { (* ~ totalize m x z1 *)
         unfold totalize. intros F. destruct F.
@@ -453,7 +445,7 @@ Proof with auto.
           apply map_covered_left in H6...
         - (* z1が境界上にあることを仮定する場合 *)
           destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
-          destruct H10. apply border_not_covered in H10; auto. }
+          destruct H10. apply border_not_covered in H10... }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
         exists x. split.
         - apply totalize_preserves_not_corner...
@@ -463,19 +455,15 @@ Proof with auto.
           + destruct H4.
             cut (subregion (closure (m z1)) (closure (totalize m z1)))...
             apply closure_preserves_subregion. apply totalize_subregion. }
-    + (* adjacent (totalize m) x z2 *)
+    + (* same as previous one! *)
       split. right. exists z1, z2. repeat (split; auto).
-      split. left. auto.
+      split. left...
       split.
-      { (* ~ totalize m x z2 *)
-        unfold totalize. intros F. destruct F.
-        - (* m x z2 を仮定する場合 *)
-          apply map_covered_left in H6...
-        - (* z2が境界上にあることを仮定する場合 *)
-          destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
-          destruct H10. apply border_not_covered in H10; auto. }
-      { (* meet (not_corner (totalize m)) (border (totalize m) x z2) *)
-        exists x. split.
+      { unfold totalize. intros F. destruct F.
+        - apply map_covered_left in H6...
+        - destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
+          destruct H10. apply border_not_covered in H10... }
+      { exists x. split.
         - apply totalize_preserves_not_corner...
         - split.
           + red. intros. exists x... split... right.
