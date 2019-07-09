@@ -171,7 +171,7 @@ Definition border (m : map) (z1 z2 : point) : region :=
   intersect (closure (m z1)) (closure (m z2)).
 
 Definition corner_map (m : map) (z : point) : map :=
-  fun z1 z2 => m z1 z2 /\ closure (m z1) z.
+  fun z1 z2 => open (m z1) /\ m z1 z2 /\ closure (m z1) z.
 
 (* a point is not a corner of a map iff it doesn't belong to the closure of
 *  more than 2 regions. *)
@@ -179,27 +179,32 @@ Definition not_corner (m : map) : region :=
   fun z => at_most_regions 2 (corner_map m z).
 
 Lemma not_corner_correct (m : map) (z1 z2 z3 z : point) :
-  plain_map m -> not_corner m z ->
+  simple_map m -> not_corner m z ->
   m z1 z1 /\ closure (m z1) z ->
   m z2 z2 /\ closure (m z2) z ->
   m z3 z3 /\ closure (m z3) z ->
   m z1 z2 \/ m z2 z3 \/ m z3 z1.
 Proof with auto.
   intros. repeat red in H0. destruct H0 as [f ?].
-  apply (H0 z1) in H1. destruct H1 as [i ?]. destruct H4.
-  apply (H0 z2) in H2. destruct H2 as [j ?]. destruct H6.
-  apply (H0 z3) in H3. destruct H3 as [k ?]. destruct H8.
+  assert (open (m z1) /\ m z1 z1 /\ closure (m z1) z) by (split; auto; apply simple_map_open; auto).
+  assert (open (m z2) /\ m z2 z2 /\ closure (m z2) z) by (split; auto; apply simple_map_open; auto).
+  assert (open (m z3) /\ m z3 z3 /\ closure (m z3) z) by (split; auto; apply simple_map_open; auto).
+  clear H1 H2 H3; rename H4 into H1; rename H5 into H2; rename H6 into H3.
+  apply (H0 z1) in H1. destruct H1 as [i ?]. destruct H4 as [? [? ?]].
+  apply (H0 z2) in H2. destruct H2 as [j ?]. destruct H7 as [? [? ?]].
+  apply (H0 z3) in H3. destruct H3 as [k ?]. destruct H10 as [? [? ?]].
   assert (i = 0 \/ i = 1) by omega.
   assert (j = 0 \/ j = 1) by omega.
   assert (k = 0 \/ k = 1) by omega.
-  destruct H10; subst; clear H1.
-  - destruct H11; subst; clear H2.
+  clear H1 H2 H3.
+  destruct H13; subst.
+  - destruct H14; subst.
     + left. apply map_trans with (f 0)... apply map_symm...
-    + right. destruct H12; subst; clear H3.
+    + right. destruct H15; subst.
       { right. apply map_symm_trans_ll with (f 0)... }
       { left. apply map_symm_trans_ll with (f 1)... }
-  - destruct H11; subst; clear H2.
-    + right. destruct H12; subst; clear H3.
+  - destruct H14; subst.
+    + right. destruct H15; subst.
       { left. apply map_symm_trans_ll with (f 0)... }
       { right. apply map_symm_trans_ll with (f 1)... }
     + left. apply map_symm_trans_ll with (f 1)...
@@ -352,6 +357,54 @@ Proof.
   unfold subregion, cover. intros. apply plain_map_totalize; auto.
 Qed.
 
+Lemma totalize_open (m : map) (z1 z2 : point) :
+  totalize m z1 z2 -> open (totalize m z1) -> m z1 z2.
+Proof.
+Admitted.
+
+Lemma totalize_preserves_corner_map (m : map) (x z1 z2 : point) :
+  simple_map m -> corner_map m x z1 z2 <-> corner_map (totalize m) x z1 z2.
+Proof with auto.
+  split; unfold corner_map; intros [? [? ?]].
+  - splits.
+    + red. intros. destruct H3.
+      { destruct (H0 z)... exists x0...
+        apply subregion_trans with (m z1)...
+        apply totalize_subregion. }
+      { exfalso.
+        destruct H3 as [z3 [z4 [_ [_ [? [? ?]]]]]].
+        destruct H4.
+        apply border_not_covered in H4...
+        apply H4. apply map_covered_left in H1... }
+    + left...
+    + repeat red. intros.
+      repeat red in H2. destruct (H2 u) as [z ?]...
+      exists z. destruct H5. split... left...
+  - splits.
+    + red. intros. unfold open in H0. destruct (H0 z) as [u ?]... left...
+      exists u... unfold subregion in H5.
+      red; intros.
+      destruct (H5 z0)...
+      exfalso. destruct H7 as [z3 [z4 [_ [_ [? [[? ?] _]]]]]].
+      apply border_not_covered in H8...
+      apply H8. apply map_covered_left in H3...
+    + apply totalize_open...
+    + repeat red. intros.
+      destruct (H2 u) as [z ?]... exists z... destruct H5. split...
+      apply totalize_open...
+Qed.
+
+Lemma totalize_preserves_not_corner (m : map) (x : point) :
+  simple_map m -> not_corner m x -> not_corner (totalize m) x.
+Proof.
+  unfold not_corner, at_most_regions. intros.
+  destruct H0 as [f ?]. exists f. intros.
+  assert (exists2 i : nat, i < 2 & corner_map m x (f i) z).
+  { apply H0. apply totalize_preserves_corner_map; auto. }
+  destruct H2 as [i ?].
+  exists i; auto. rewrite <- totalize_preserves_corner_map; auto.
+Qed.
+
 Record tcoloring (m k : map) : Prop := TColoring {
   tcoloring_coloring : coloring (totalize m) k;
   tcoloring_adjacent z :
@@ -391,9 +444,8 @@ Proof with auto.
           destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
           destruct H10. apply border_not_covered in H10; auto. }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
-        exists x. split.
-        admit. }
-    +
+        exists x. admit. }
+    + admit.
 Admitted.
 
 Lemma coloring_leq_tcoloring :
