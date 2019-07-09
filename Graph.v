@@ -119,6 +119,13 @@ Definition open (r : region) : Prop :=
 Definition closure (r : region) : region :=
   fun z => forall u, open u -> u z -> meet r u.
 
+Lemma closure_preserves_subregion (r1 r2 : region) :
+  subregion r1 r2 -> subregion (closure r1) (closure r2).
+Proof with auto.
+  unfold subregion, closure. intros. destruct (H0 u) as [x [? ?]]...
+  exists x. split...
+Qed.
+
 Definition connected (r : region) : Prop :=
   forall u v, open u -> open v -> subregion r (union u v) ->
   meet u r -> meet v r -> meet u v.
@@ -359,7 +366,11 @@ Qed.
 
 Lemma totalize_open (m : map) (z1 z2 : point) :
   totalize m z1 z2 -> open (totalize m z1) -> m z1 z2.
-Proof.
+Proof with auto.
+  intros. inversion H...
+  destruct H1 as [z3 [z4 [? [? [? [[? ?] [? ?]]]]]]].
+  red in H0. destruct (H0 z2) as [u ?]...
+  (* TODO *)
 Admitted.
 
 Lemma totalize_preserves_corner_map (m : map) (x z1 z2 : point) :
@@ -444,9 +455,35 @@ Proof with auto.
           destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
           destruct H10. apply border_not_covered in H10; auto. }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
-        exists x. admit. }
-    + admit.
-Admitted.
+        exists x. split.
+        - apply totalize_preserves_not_corner...
+        - split.
+          + red. intros. exists x... split... right.
+            exists z1, z2... destruct H4. repeat split...
+          + destruct H4.
+            cut (subregion (closure (m z1)) (closure (totalize m z1)))...
+            apply closure_preserves_subregion. apply totalize_subregion. }
+    + (* adjacent (totalize m) x z2 *)
+      split. right. exists z1, z2. repeat (split; auto).
+      split. left. auto.
+      split.
+      { (* ~ totalize m x z2 *)
+        unfold totalize. intros F. destruct F.
+        - (* m x z2 を仮定する場合 *)
+          apply map_covered_left in H6...
+        - (* z2が境界上にあることを仮定する場合 *)
+          destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
+          destruct H10. apply border_not_covered in H10; auto. }
+      { (* meet (not_corner (totalize m)) (border (totalize m) x z2) *)
+        exists x. split.
+        - apply totalize_preserves_not_corner...
+        - split.
+          + red. intros. exists x... split... right.
+            exists z1, z2... destruct H4. repeat split...
+          + destruct H4.
+            cut (subregion (closure (m z2)) (closure (totalize m z2)))...
+            apply closure_preserves_subregion. apply totalize_subregion. }
+Qed.
 
 Lemma coloring_leq_tcoloring :
   forall m : map, forall n : nat,
