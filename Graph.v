@@ -29,6 +29,10 @@ Definition nonempty (r : region) : Prop := exists z : point, r z.
 
 Definition subregion (r1 r2 : region) : Prop := forall z : point, r1 z -> r2 z.
 
+Lemma intersect_symm (r1 r2 : region) (z : point) :
+  intersect r1 r2 z <-> intersect r2 r1 z.
+Proof. split; intros [? ?]; split; auto. Qed.
+
 Lemma subregion_refl (r : region) :
   subregion r r.
 Proof. red. auto. Qed.
@@ -159,7 +163,24 @@ Definition adjacent (m : map) (z1 z2 : point) : Prop :=
 Definition inter_region (m : map) (z1 z2 : point) : region :=
   fun z => ~ m z1 z2 /\ intersect (not_corner m) (border m z1 z2) z.
 
-Lemma border_not_covered (m : map) (z1 z2 z :point) :
+Lemma border_symm (m : map) (z1 z2 z : point) :
+  border m z1 z2 z <-> border m z2 z1 z.
+Proof. split; unfold border; apply intersect_symm. Qed.
+
+Lemma inter_region_symm (m : map) (z1 z2 z : point) :
+  simple_map m ->
+  inter_region m z1 z2 z <-> inter_region m z2 z1 z.
+Proof.
+  split; unfold inter_region; intros [? [? ?]]; split.
+  - intros F; apply H0; apply map_symm; auto.
+  - split; auto. apply border_symm; auto.
+  - intros F; apply H0; apply map_symm; auto.
+  - split; auto. apply border_symm; auto.
+Qed.
+
+Hint Resolve border_symm inter_region_symm.
+
+Lemma border_not_covered (m : map) (z1 z2 z : point) :
   simple_map m -> ~ m z1 z2 -> border m z1 z2 z -> ~ m z z.
 Proof.
   intros ? ? [? ?] ?.
@@ -202,10 +223,10 @@ Definition totalize (m : map) : map :=
   fun z z' =>
     (* もともとm上の点である *)
     m z z' \/
-    not_corner m z /\
     (* z1, z2を含むregionの間にある点 *)
     (exists z1 z2 : point,
-      closure (m z1) z /\ closure (m z2) z /\ ~ m z1 z2 /\
+      ~ m z1 z2 /\
+      intersect (border m z1 z2) (not_corner m) z /\
       intersect (border m z1 z2) (not_corner m) z').
 
 Lemma totalize_symm (m : map) (z1 z2 : point) :
@@ -213,8 +234,8 @@ Lemma totalize_symm (m : map) (z1 z2 : point) :
 Proof.
   unfold totalize. intros. destruct H0.
   - left. apply map_symm; auto.
-  - destruct H0 as [? [z3 [z4 [? [? [? [[? ?] ?]]]]]]].
-    right. split; auto. exists z3; exists z4.
+  - destruct H0 as [z3 [z4 [? [[? ?] [? ?]]]]].
+    right. exists z3, z4.
     repeat (split; auto).
 Qed.
 
@@ -224,16 +245,20 @@ Proof.
   intros. destruct H0.
   - destruct H1.
     + left. apply map_trans with z2; auto.
-    + destruct H1 as [? [z4 [z5 [? [? [? ?]]]]]].
-      assert (border m z4 z5 z2) by (split; auto).
-      apply border_not_covered in H6; auto.
+    + destruct H1 as [z4 [z5 [? [[? ?] [? ?]]]]].
+      apply border_not_covered in H2; auto.
       apply map_covered_right in H0; auto.
-      exfalso. apply H6; auto.
-  - destruct H0 as [? [z4 [z5 [? [? [? [? ?]]]]]]]. destruct H1.
-    + apply border_not_covered in H5; auto.
-      apply map_covered_left in H1; auto. exfalso. apply H5; auto.
-    + destruct H1 as [? [z6 [z7 [? [? [? [? ?]]]]]]].
-  (* TODO *)
+      exfalso. apply H2; auto.
+  - destruct H0 as [z4 [z5 [? [[? ?] [? ?]]]]].
+    destruct H1.
+    + apply border_not_covered in H4; auto.
+      apply map_covered_left in H1; auto. exfalso. apply H4; auto.
+    + destruct H1 as [z6 [z7 [? [[? ?] [? ?]]]]].
+      assert (z4 = z6 /\ z5 = z7 \/ z4 = z7 /\ z5 = z6) by
+        (apply inter_region_deterministic with m z2; repeat (split; auto)).
+      destruct H10; destruct H10; subst z6 z7.
+      { right. exists z4, z5. repeat (split; auto). }
+      { right. exists z4, z5. repeat (split; auto). }
 Admitted.
 
 Lemma totalize_subregion (m : map) (z : point) :
