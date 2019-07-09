@@ -1,4 +1,4 @@
-Require Import Graph.
+Require Import PlaneGraph.
 
 Record coloring (m k : map) : Prop := Coloring {
   coloring_plain : plain_map k;

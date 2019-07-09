@@ -1,5 +1,5 @@
 Require Import Coloring.
-Require Import Graph.
+Require Import PlaneGraph.
 
 (* TODO: add a restriction so that each region of m should be convex *)
 Definition totalize (m : map) : map :=

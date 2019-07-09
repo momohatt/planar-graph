@@ -1,11 +1,11 @@
-TotalColoring.vo: Graph.vo Coloring.vo TotalColoring.v
+TotalColoring.vo: PlaneGraph.vo Coloring.vo TotalColoring.v
 	coqc TotalColoring.v
 
-Coloring.vo: Graph.vo Coloring.v
+Coloring.vo: PlaneGraph.vo Coloring.v
 	coqc Coloring.v
 
-Graph.vo: Graph.v
-	coqc Graph.v
+PlaneGraph.vo: PlaneGraph.v
+	coqc PlaneGraph.v
 
 clean:
 	rm -rf *.glob *.vo *.aux
