@@ -75,13 +75,34 @@ Proof.
 Qed.
 
 Lemma totalize_open (m : map) (z1 z2 : point) :
+  simple_map m ->
   totalize m z1 z2 -> open (totalize m z1) -> m z1 z2.
 Proof with auto.
-  intros. inversion H...
-  destruct H1 as [z3 [z4 [? [? [? [[? ?] [? ?]]]]]]].
-  red in H0. destruct (H0 z2) as [u ?]...
-  (* TODO *)
-Admitted.
+  intros. inversion H0...
+  exfalso.
+  destruct H2 as [z3 [z4 [? [? [? [[? ?] [? ?]]]]]]].
+  destruct (H1 z2) as [u ?]...
+  assert (totalize m z1 z3).
+  { destruct H7.
+    assert (meet (m z3) (in_rectangle u)).
+    { apply H7... red. intros. exists u... }
+    destruct H12 as [z5 [? ?]].
+    assert (totalize m z1 z5)...
+    apply totalize_trans with z5... left. apply map_symm... }
+  assert (totalize m z1 z4).
+  { destruct H7.
+    assert (meet (m z4) (in_rectangle u)).
+    { apply H12... red. intros. exists u... }
+    destruct H13 as [z5 [? ?]].
+    assert (totalize m z1 z5)...
+    apply totalize_trans with z5... left; apply map_symm... }
+  assert (totalize m z3 z4).
+  { apply totalize_trans with z1... apply totalize_symm... }
+  destruct H13.
+  - contradiction.
+  - destruct H13 as [z5 [z6 [? [? [? [[? ?] _]]]]]].
+    apply border_not_covered in H16...
+Qed.
 
 Lemma totalize_preserves_corner_map (m : map) (x z1 z2 : point) :
   simple_map m -> corner_map m x z1 z2 <-> corner_map (totalize m) x z1 z2.
@@ -187,7 +208,7 @@ Proof with auto.
             apply closure_preserves_subregion. apply totalize_subregion. }
 Qed.
 
-Lemma coloring_leq_tcoloring :
+Theorem coloring_leq_tcoloring :
   forall m : map, forall n : nat,
   simple_map m -> tcolorable_with n m -> colorable_with n m.
 Proof with auto.
@@ -196,3 +217,39 @@ Proof with auto.
   exists k...
   apply tcoloring_is_coloring...
 Qed.
+
+(*
+Record incident (m : map) (z1 z2 : point) : Prop := Incident {
+  incident_not_cover_left : ~ m z1 z1;
+  incident_not_cover_right : ~ m z2 z2;
+  incident_not_same_face : ~ m z1 z2;
+  incident_common_adjacent : exists z, closure (m z) z1 /\ closure (m z) z2
+}.
+
+Definition edge (m : map) : map :=
+  fun z z' =>
+    ~ m z z' /\ ~ m z z /\ ~ m z' z' /\
+    (* z1, z2を含むregionの間にある点 *)
+    (exists z1 z2 : point,
+      m z1 z1 /\ m z2 z2 /\ ~ m z1 z2 /\
+      intersect (border m z1 z2) (not_corner m) z /\
+      intersect (border m z1 z2) (not_corner m) z').
+
+Record ecoloring (m k : map) : Prop := EColoring {
+  ecoloring_plain : plain_map k;
+  ecoloring_cover : subregion (cover (edge m)) (cover k);
+  ecoloring_consistent : submap (edge m) k;
+  ecoloring_incident z1 z2 :
+    incident m z1 z2 -> ~ k z1 z2
+}.
+
+Lemma tcoloring_is_ecoloring (m k : map) :
+  simple_map m -> tcoloring m k -> ecoloring m k.
+Proof with auto.
+  intros. inversion H0. split.
+  - apply coloring_plain with m... apply tcoloring_is_coloring...
+  - red. intros. admit.
+  - admit.
+  - admit.
+Admitted.
+*)

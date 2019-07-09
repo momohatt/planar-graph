@@ -279,3 +279,9 @@ Record outerplane_map (m : map) : Prop := OuterplaneMap {
   outerplane_map_finsimple : finite_simple_map m;
   outerplane_map_outer z : outerface m z
 }.
+
+Definition num_of_regions (n : nat) (m : map) : Prop :=
+  ~ (at_most_regions (n - 1) m) /\ at_most_regions n m.
+
+(* alias *)
+Definition num_of_vertices := num_of_regions.
