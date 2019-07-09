@@ -119,6 +119,12 @@ Definition open (r : region) : Prop :=
 Definition closure (r : region) : region :=
   fun z => forall u, open u -> u z -> meet r u.
 
+Lemma closure_supregion (m : map) (z : point) :
+  m z z -> closure (m z) z.
+Proof with auto.
+  red. intros. exists z... split...
+Qed.
+
 Lemma closure_preserves_subregion (r1 r2 : region) :
   subregion r1 r2 -> subregion (closure r1) (closure r2).
 Proof with auto.

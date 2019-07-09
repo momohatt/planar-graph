@@ -185,7 +185,7 @@ Proof with auto.
         exists x. split.
         - apply totalize_preserves_not_corner...
         - split.
-          + red. intros. exists x... split... right.
+          + apply closure_supregion... right.
             exists z1, z2... destruct H1. repeat split...
           + destruct H1.
             cut (subregion (closure (m z1)) (closure (totalize m z1)))...
@@ -201,7 +201,7 @@ Proof with auto.
       { exists x. split.
         - apply totalize_preserves_not_corner...
         - split.
-          + red. intros. exists x... split... right.
+          + apply closure_supregion... right.
             exists z1, z2... destruct H1. repeat split...
           + destruct H1.
             cut (subregion (closure (m z2)) (closure (totalize m z2)))...
@@ -218,7 +218,6 @@ Proof with auto.
   apply tcoloring_is_coloring...
 Qed.
 
-(*
 Record incident (m : map) (z1 z2 : point) : Prop := Incident {
   incident_not_cover_left : ~ m z1 z1;
   incident_not_cover_right : ~ m z2 z2;
@@ -252,4 +251,3 @@ Proof with auto.
   - admit.
   - admit.
 Admitted.
-*)
