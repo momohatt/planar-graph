@@ -63,22 +63,33 @@ Hint Resolve subregion_refl subregion_trans meet_subregion.
 
 Record plain_map (m : map) : Prop := PlainMap {
   map_symm z1 z2 : m z1 z2 -> m z2 z1;
-  map_trans z1 z2 : m z1 z2 -> subregion (m z2) (m z1)
+  map_trans z1 z2 z3 : m z1 z2 -> m z2 z3 -> m z1 z3
 }.
 
-Hint Resolve map_trans.
+(*
+Axiom plain_map_unique_point :
+  forall (m : map) (z1 z2 : point), plain_map m -> m z1 z2 -> z1 = z2.
+*)
+
+Lemma map_symm_trans_ll (m : map) (z1 z2 z3 : point) :
+  plain_map m -> m z1 z2 -> m z1 z3 -> m z2 z3.
+Proof. intros. apply map_trans with z1; auto. apply map_symm; auto. Qed.
+
+Lemma map_symm_trans_rr (m : map) (z1 z2 z3 : point) :
+  plain_map m -> m z1 z2 -> m z3 z2 -> m z1 z3.
+Proof. intros. apply map_trans with z2; auto. apply map_symm; auto. Qed.
 
 Lemma map_covered_left (m : map) (z1 z2 : point) :
   plain_map m -> m z1 z2 -> m z1 z1.
 Proof.
   intros. assert (m z2 z1) by (apply map_symm; auto).
-  apply map_trans in H0; auto. Qed.
+  apply map_trans with z2; auto. Qed.
 
 Lemma map_covered_right (m : map) (z1 z2 : point) :
   plain_map m -> m z1 z2 -> m z2 z2.
 Proof.
   intros. assert (m z2 z1) by (apply map_symm; auto).
-  apply map_trans in H1; auto. Qed.
+  apply map_trans with z1; auto. Qed.
 
 (* sum of all the regions in map (set of all the points defined on map) *)
 Definition cover (m : map) : region := fun z => m z z.
@@ -185,13 +196,13 @@ Proof with auto.
   - destruct H11; subst; clear H2.
     + left. apply map_trans with (f 0)... apply map_symm...
     + right. destruct H12; subst; clear H3.
-      { right. apply map_trans with (f 0)... apply map_symm... }
-      { left. apply map_trans with (f 1)... apply map_symm... }
+      { right. apply map_symm_trans_ll with (f 0)... }
+      { left. apply map_symm_trans_ll with (f 1)... }
   - destruct H11; subst; clear H2.
     + right. destruct H12; subst; clear H3.
-      { left. apply map_trans with (f 0)... apply map_symm... }
-      { right. apply map_trans with (f 1)... apply map_symm... }
-    + left. apply map_trans with (f 1)... apply map_symm...
+      { left. apply map_symm_trans_ll with (f 0)... }
+      { right. apply map_symm_trans_ll with (f 1)... }
+    + left. apply map_symm_trans_ll with (f 1)...
 Qed.
 
 Definition adjacent (m : map) (z1 z2 : point) : Prop :=
@@ -226,7 +237,7 @@ Proof.
   - destruct (closure_map _ _ _ H H1); auto.
     apply H4 in H3. inversion H3.
   - destruct (closure_map _ _ _ H H2).
-    + apply map_symm; auto. apply simple_map_plain; auto.
+    + apply map_symm; auto.
     + apply H4 in H3. inversion H3.
 Qed.
 
@@ -244,7 +255,7 @@ Proof with auto.
     + right; split...
       assert (m z1 z3 \/ m z3 z4 \/ m z4 z1) by (apply not_corner_correct with z; auto).
       destruct H12.
-      { exfalso. apply H4; apply map_trans with z3... apply map_symm... }
+      { exfalso. apply H4; apply map_symm_trans_rr with z3... }
       { destruct H12. contradiction. apply map_symm... }
     + left. split; apply map_symm...
       assert (m z2 z3 \/ m z3 z4 \/ m z4 z2) by (apply not_corner_correct with z; auto).
@@ -294,14 +305,14 @@ Lemma totalize_trans (m : map) (z1 z2 z3 : point) :
 Proof with auto.
   intros. destruct H0.
   - destruct H1.
-    + left. apply map_trans with z2; auto.
+    + left. apply map_trans with z2...
     + destruct H1 as [z4 [z5 [? [? [? [[? ?] [? ?]]]]]]].
-      apply border_not_covered in H4; auto.
-      apply map_covered_right in H0; auto. contradiction.
+      apply border_not_covered in H4...
+      apply map_covered_right in H0... contradiction.
   - destruct H0 as [z4 [z5 [? [? [? [[? ?] [? ?]]]]]]].
     destruct H1.
-    + apply border_not_covered in H6; auto.
-      apply map_covered_left in H1; auto. contradiction.
+    + apply border_not_covered in H6...
+      apply map_covered_left in H1... contradiction.
     + destruct H1 as [z6 [z7 [? [? [? [[? ?] [? ?]]]]]]].
       assert (m z4 z6 /\ m z5 z7 \/ m z4 z7 /\ m z5 z6).
       { apply inter_region_deterministic with z2; auto; split; auto; split; auto. }
@@ -324,7 +335,9 @@ Lemma totalize_plain_map (m : map) :
 Proof.
   intros. inversion H. split; intros.
   - apply totalize_symm; auto.
-  - apply totalize_trans; auto.
+  - red. intros. apply totalize_trans with z3; auto.
+    apply totalize_trans with z2; auto. apply totalize_trans with z2; auto.
+    apply totalize_symm; auto.
 Qed.
 
 Lemma plain_map_totalize (m : map) (z z' : point) :
@@ -377,8 +390,6 @@ Proof.
           apply map_trans with z1; auto.
         - (* z1が境界上にあることを仮定する場合 *)
           destruct H4 as [z3 [z4 [? [? [? [? ?]]]]]].
-          apply border_not_covered in H7; auto.
-          apply H7.
           admit. }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
         admit. }
