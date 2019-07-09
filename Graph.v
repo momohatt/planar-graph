@@ -206,7 +206,7 @@ Proof with auto.
 Qed.
 
 Definition adjacent (m : map) (z1 z2 : point) : Prop :=
-  ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
+  m z1 z1 /\ m z2 z2 /\ ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
 
 Definition inter_region (m : map) (z1 z2 : point) : region :=
   fun z => ~ m z1 z2 /\ intersect (not_corner m) (border m z1 z2) z.
@@ -367,33 +367,33 @@ Definition tcolorable_with (n : nat) (m : map) : Prop :=
 
 Lemma tcoloring_is_coloring :
   forall m k : map, simple_map m -> tcoloring m k -> coloring m k.
-Proof.
-  intros.
-  destruct H0.
-  destruct tcoloring_coloring0.
-  split; auto.
-  - apply subregion_trans with (cover (totalize m)); auto.
-    apply totalize_cover_subregion; auto.
-  - apply submap_trans with (totalize m); auto.
-    repeat red. auto.
+Proof with auto.
+  intros. destruct H0. destruct tcoloring_coloring0.
+  split...
+  - apply subregion_trans with (cover (totalize m))...
+    apply totalize_cover_subregion...
+  - apply submap_trans with (totalize m)...
+    repeat red...
   - (* any adjacent two faces in m are colored differently *)
     intros.
-    destruct H0 as [? [? [? ?]]].
-    assert (~ m x x) by apply (border_not_covered _ _ _ _ H H0 H2).
+    destruct H0 as [? [? [? [? [? ?]]]]].
+    assert (~ m x x) by apply (border_not_covered _ _ _ _ H H2 H4).
     apply tcoloring_adjacent0 with x.
     + (* adjacent (totalize m) x z1 *)
-      red. split.
+      split. right. exists z1, z2. repeat (split; auto).
+      split. left. auto.
+      split.
       { (* ~ totalize m x z1 *)
         unfold totalize. intros F. destruct F.
         - (* m x z1 を仮定する場合 *)
-          apply H3. assert (m z1 x) by (apply map_symm; auto).
-          apply map_trans with z1; auto.
+          apply map_covered_left in H6...
         - (* z1が境界上にあることを仮定する場合 *)
-          destruct H4 as [z3 [z4 [? [? [? [? ?]]]]]].
-          admit. }
+          destruct H6 as [z3 [z4 [? [? [? [? ?]]]]]].
+          destruct H10. apply border_not_covered in H10; auto. }
       { (* meet (not_corner (totalize m)) (border (totalize m) x z1) *)
+        exists x. split.
         admit. }
-    + red. split.
+    +
 Admitted.
 
 Lemma coloring_leq_tcoloring :
