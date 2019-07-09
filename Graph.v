@@ -1,5 +1,6 @@
 Require Import Coq.Reals.Reals.
 Require Import Coq.Logic.Classical_Prop.
+Require Import Coq.omega.Omega.
 Require Import LibTactics.
 
 Inductive point : Type := Point (x y : R).
@@ -144,6 +145,15 @@ Proof.
   apply map_symm; auto.
 Qed.
 
+Lemma closure_map_trans (m : map) (z1 z2 z : point) :
+  plain_map m -> m z1 z2 -> closure (m z1) z -> closure (m z2) z.
+Proof with auto.
+  unfold closure, meet. intros.
+  assert (nonempty (intersect (m z1) u)) by auto.
+  destruct H4. destruct H4. exists x. split; auto.
+  apply map_trans with z1... apply map_symm...
+Qed.
+
 (* Borders, corners, adjacency and coloring. *)
 
 Definition border (m : map) (z1 z2 : point) : region :=
@@ -156,6 +166,33 @@ Definition corner_map (m : map) (z : point) : map :=
 *  more than 2 regions. *)
 Definition not_corner (m : map) : region :=
   fun z => at_most_regions 2 (corner_map m z).
+
+Lemma not_corner_correct (m : map) (z1 z2 z3 z : point) :
+  plain_map m -> not_corner m z ->
+  m z1 z1 /\ closure (m z1) z ->
+  m z2 z2 /\ closure (m z2) z ->
+  m z3 z3 /\ closure (m z3) z ->
+  m z1 z2 \/ m z2 z3 \/ m z3 z1.
+Proof with auto.
+  intros. repeat red in H0. destruct H0 as [f ?].
+  apply (H0 z1) in H1. destruct H1 as [i ?]. destruct H4.
+  apply (H0 z2) in H2. destruct H2 as [j ?]. destruct H6.
+  apply (H0 z3) in H3. destruct H3 as [k ?]. destruct H8.
+  assert (i = 0 \/ i = 1) by omega.
+  assert (j = 0 \/ j = 1) by omega.
+  assert (k = 0 \/ k = 1) by omega.
+  destruct H10; subst; clear H1.
+  - destruct H11; subst; clear H2.
+    + left. apply map_trans with (f 0)... apply map_symm...
+    + right. destruct H12; subst; clear H3.
+      { right. apply map_trans with (f 0)... apply map_symm... }
+      { left. apply map_trans with (f 1)... apply map_symm... }
+  - destruct H11; subst; clear H2.
+    + right. destruct H12; subst; clear H3.
+      { left. apply map_trans with (f 0)... apply map_symm... }
+      { right. apply map_trans with (f 1)... apply map_symm... }
+    + left. apply map_trans with (f 1)... apply map_symm...
+Qed.
 
 Definition adjacent (m : map) (z1 z2 : point) : Prop :=
   ~ m z1 z2 /\ meet (not_corner m) (border m z1 z2).
@@ -194,14 +231,27 @@ Proof.
 Qed.
 
 Lemma inter_region_deterministic (m : map) (z z1 z2 z3 z4 : point) :
+  simple_map m ->
+  m z1 z1 -> m z2 z2 -> m z3 z3 -> m z4 z4 ->
   inter_region m z1 z2 z -> inter_region m z3 z4 z ->
-  (z1 = z3 /\ z2 = z4) \/ (z1 = z4 /\ z2 = z3).
-Proof.
-  unfold inter_region. intros [? [? ?]] [? [? ?]].
-  unfold not_corner, at_most_regions in H0, H3.
-  destruct H0 as [f ?]. destruct H3 as [g ?].
-  unfold corner_map in H0, H3.
-Admitted.
+  (m z1 z3 /\ m z2 z4) \/ (m z1 z4 /\ m z2 z3).
+Proof with auto.
+  unfold inter_region. intros ? ? ? ? ? [? [? [? ?]]] [? [_ [? ?]]].
+  assert (m z1 z2 \/ m z2 z3 \/ m z3 z1) by (apply not_corner_correct with z; auto).
+  destruct H11.
+  - contradiction.
+  - destruct H11.
+    + right; split...
+      assert (m z1 z3 \/ m z3 z4 \/ m z4 z1) by (apply not_corner_correct with z; auto).
+      destruct H12.
+      { exfalso. apply H4; apply map_trans with z3... apply map_symm... }
+      { destruct H12. contradiction. apply map_symm... }
+    + left. split; apply map_symm...
+      assert (m z2 z3 \/ m z3 z4 \/ m z4 z2) by (apply not_corner_correct with z; auto).
+      destruct H12.
+      { exfalso. apply H4; apply map_trans with z3; auto; apply map_symm... }
+      { destruct H12. contradiction. auto. }
+Qed.
 
 Definition outerface (m : map) (z1 : point) : Prop :=
   exists2 z2 : point, adjacent m z1 z2 & ~ (cover m z2).
@@ -225,7 +275,7 @@ Definition totalize (m : map) : map :=
     m z z' \/
     (* z1, z2を含むregionの間にある点 *)
     (exists z1 z2 : point,
-      ~ m z1 z2 /\
+      m z1 z1 /\ m z2 z2 /\ ~ m z1 z2 /\
       intersect (border m z1 z2) (not_corner m) z /\
       intersect (border m z1 z2) (not_corner m) z').
 
@@ -234,32 +284,35 @@ Lemma totalize_symm (m : map) (z1 z2 : point) :
 Proof.
   unfold totalize. intros. destruct H0.
   - left. apply map_symm; auto.
-  - destruct H0 as [z3 [z4 [? [[? ?] [? ?]]]]].
+  - destruct H0 as [z3 [z4 [? [? [? [[? ?] [? ?]]]]]]].
     right. exists z3, z4.
     repeat (split; auto).
 Qed.
 
 Lemma totalize_trans (m : map) (z1 z2 z3 : point) :
   simple_map m -> totalize m z1 z2 -> totalize m z2 z3 -> totalize m z1 z3.
-Proof.
+Proof with auto.
   intros. destruct H0.
   - destruct H1.
     + left. apply map_trans with z2; auto.
-    + destruct H1 as [z4 [z5 [? [[? ?] [? ?]]]]].
-      apply border_not_covered in H2; auto.
-      apply map_covered_right in H0; auto.
-      exfalso. apply H2; auto.
-  - destruct H0 as [z4 [z5 [? [[? ?] [? ?]]]]].
+    + destruct H1 as [z4 [z5 [? [? [? [[? ?] [? ?]]]]]]].
+      apply border_not_covered in H4; auto.
+      apply map_covered_right in H0; auto. contradiction.
+  - destruct H0 as [z4 [z5 [? [? [? [[? ?] [? ?]]]]]]].
     destruct H1.
-    + apply border_not_covered in H4; auto.
-      apply map_covered_left in H1; auto. exfalso. apply H4; auto.
-    + destruct H1 as [z6 [z7 [? [[? ?] [? ?]]]]].
-      assert (z4 = z6 /\ z5 = z7 \/ z4 = z7 /\ z5 = z6) by
-        (apply inter_region_deterministic with m z2; repeat (split; auto)).
-      destruct H10; destruct H10; subst z6 z7.
-      { right. exists z4, z5. repeat (split; auto). }
-      { right. exists z4, z5. repeat (split; auto). }
-Admitted.
+    + apply border_not_covered in H6; auto.
+      apply map_covered_left in H1; auto. contradiction.
+    + destruct H1 as [z6 [z7 [? [? [? [[? ?] [? ?]]]]]]].
+      assert (m z4 z6 /\ m z5 z7 \/ m z4 z7 /\ m z5 z6).
+      { apply inter_region_deterministic with z2; auto; split; auto; split; auto. }
+      destruct H14; destruct H14.
+      { right. exists z4, z5. destruct H12. repeat (split; auto).
+        - apply closure_map_trans with z6... apply map_symm...
+        - apply closure_map_trans with z7... apply map_symm... }
+      { right. exists z4, z5. destruct H12. repeat (split; auto).
+        - apply closure_map_trans with z7... apply map_symm...
+        - apply closure_map_trans with z6... apply map_symm... }
+Qed.
 
 Lemma totalize_subregion (m : map) (z : point) :
   subregion (m z) (totalize m z).
