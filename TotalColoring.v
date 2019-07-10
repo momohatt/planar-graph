@@ -193,8 +193,7 @@ Proof with auto.
     + (* same as previous one! *)
       split.
       { right. exists z1, z2. repeat (split; auto). }
-      { left... }
-      { unfold totalize. intros F. destruct F.
+      { left... } { unfold totalize. intros F. destruct F.
         - apply map_covered_left in H3...
         - destruct H3 as [z3 [z4 [? [? [? [? ?]]]]]].
           destruct H7. apply border_not_covered in H7... }
@@ -219,15 +218,12 @@ Proof with auto.
 Qed.
 
 Record incident (m : map) (z1 z2 : point) : Prop := Incident {
-  incident_not_cover_left : ~ m z1 z1;
-  incident_not_cover_right : ~ m z2 z2;
-  incident_not_same_face : ~ m z1 z2;
-  incident_common_adjacent : exists z, closure (m z) z1 /\ closure (m z) z2
+  incident_not_same_edge : ~ totalize m z1 z2;
+  incident_common_adjacent : exists z, adjacent (totalize m) z z1 /\ adjacent (totalize m) z z2
 }.
 
 Definition edge (m : map) : map :=
   fun z z' =>
-    ~ m z z' /\ ~ m z z /\ ~ m z' z' /\
     (* z1, z2を含むregionの間にある点 *)
     (exists z1 z2 : point,
       m z1 z1 /\ m z2 z2 /\ ~ m z1 z2 /\
@@ -242,12 +238,15 @@ Record ecoloring (m k : map) : Prop := EColoring {
     incident m z1 z2 -> ~ k z1 z2
 }.
 
-Lemma tcoloring_is_ecoloring (m k : map) :
+Theorem tcoloring_is_ecoloring (m k : map) :
   simple_map m -> tcoloring m k -> ecoloring m k.
 Proof with auto.
   intros. inversion H0. split.
   - apply coloring_plain with m... apply tcoloring_is_coloring...
-  - red. intros. admit.
-  - admit.
-  - admit.
-Admitted.
+  - destruct tcoloring_coloring0. apply subregion_trans with (cover (totalize m))...
+    red. intros. repeat red. right...
+  - destruct tcoloring_coloring0. apply submap_trans with (totalize m)...
+    repeat red. intros. right...
+  - intros. destruct H1. destruct incident_common_adjacent0 as [z [? ?]].
+    eapply tcoloring_adjacent0 with z...
+Qed.
